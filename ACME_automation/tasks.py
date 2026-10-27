@@ -53,6 +53,9 @@ def merge_orders_and_products(orders, products):
 
     return items
 
+def join_unique_ids(ids):
+    return " ".join(str(i) for i in sorted(set(ids)))
+
 if __name__ == "__main__":
 
     # Configure arguments as Path instances
@@ -103,3 +106,11 @@ if __name__ == "__main__":
     orders_total_prices = orders_total_prices.groupby("id")["euros"].sum()
 
     save_to_file(orders_total_prices, "order_prices.csv", output_dir)
+
+    # Task 2
+    grouped_products = items.groupby("product_id")["customer"].apply(join_unique_ids)
+
+    # Reset Series index, which currently has the customer values without its index.
+    # Then rename product_id column
+    grouped_products = grouped_products.reset_index(name="customer_ids").rename(columns={"product_id": "id"})
+    save_to_file(grouped_products, "product_customers.csv", output_dir, False)
