@@ -33,6 +33,26 @@ def configure_parser():
     )
     return parser
 
+def save_to_file(items, file_name, output_dir, index=True):
+    output_file = output_dir / file_name
+    items.to_csv(output_file, index=index)
+
+def merge_orders_and_products(orders, products):
+    orders["products"] = orders["products"].str.split()
+
+    # Separate each row into n different rows, with n being the ammount of products in the original row. 
+    items = orders.explode("products", ignore_index=False).astype({"products": int})
+
+    # Inner join, so each product id is intersected from both dataframes 
+    items = items.merge(
+        products.rename(columns={"id": "product_id"}), # Rename columns, as they originally share their names
+        left_on="products",
+        right_on="product_id",
+        how="inner"
+    )
+
+    return items
+
 if __name__ == "__main__":
 
     # Configure arguments as Path instances
@@ -76,3 +96,10 @@ if __name__ == "__main__":
 
     except pd.errors.ParserError as e:
         parser.error(f"Invalid CSV format: {e}")
+
+    # Task 1
+    items = merge_orders_and_products(df_orders, df_products)
+    orders_total_prices = items.rename(columns={"cost": "euros"})
+    orders_total_prices = orders_total_prices.groupby("id")["euros"].sum()
+
+    save_to_file(orders_total_prices, "order_prices.csv", output_dir)
