@@ -114,3 +114,28 @@ if __name__ == "__main__":
     # Then rename product_id column
     grouped_products = grouped_products.reset_index(name="customer_ids").rename(columns={"product_id": "id"})
     save_to_file(grouped_products, "product_customers.csv", output_dir, False)
+
+
+    # Task 3
+    grouped_customers = items.groupby("customer")["cost"].sum()
+
+    clients_info_and_total_spendings = (
+        df_customers.merge(
+            grouped_customers.reset_index(name="total_euros"), # Reset Series index, which currently has the customer values without its index (due to previous groupby)
+            left_on="id",
+            right_on="customer",
+            how="left" # Include customers who haven't ordered any product
+        )
+    )
+
+    # Order by descending order of total_euros
+    clients_info_and_total_spendings = clients_info_and_total_spendings.sort_values(
+        by=["total_euros", "id"], ascending=[False, True]
+    )
+
+    # Add 0 (€) value to each customer who hasn't ordered any product
+    clients_info_and_total_spendings["total_euros"] = clients_info_and_total_spendings["total_euros"].fillna(0)
+
+    clients_info_and_total_spendings = clients_info_and_total_spendings.drop(columns=["customer"])
+
+    save_to_file(clients_info_and_total_spendings, "customer_ranking.csv", output_dir, False)
