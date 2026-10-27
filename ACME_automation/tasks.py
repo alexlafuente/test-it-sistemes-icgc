@@ -35,21 +35,39 @@ def save_to_file(items, file_name, output_dir, index=True):
     output_file = output_dir / file_name
     items.to_csv(output_file, index=index)
 
-def merge_orders_and_products(orders, products):
-    orders["products"] = orders["products"].str.split()
+def explode_orders(orders, products):
+    """Return one row per product unit in each order, with its cost.
+
+    Columns: order_id, customer, product_id, product_name, cost.
+    """
+    items = orders.rename(columns={"id": "order_id",}).copy()
+    items["product_id"] = items["products"].str.split()
+    items = items.drop(columns="products")
 
     # Separate each row into n different rows, with n being the ammount of products in the original row. 
-    items = orders.explode("products", ignore_index=False).astype({"products": int})
+    items = items.explode("product_id", ignore_index=False).astype({"product_id": int})
 
     # Inner join, so each product id is intersected from both dataframes 
     items = items.merge(
-        products.rename(columns={"id": "product_id"}), # Rename columns, as they originally share their names
-        left_on="products",
-        right_on="product_id",
+        products.rename(columns={"id": "product_id", "name": "product_name"}), # Rename id column so it's the same in both tables, and can be connected via "on". Rename "name" to "product_name" for clarity.
+        on="product_id",
         how="inner"
     )
 
     return items
+
+def order_prices(items):
+    """Task 1: Return dataframe with total cost in euros per order."""
+    orders_total_prices = items.rename(columns={"cost": "euros"})
+    orders_total_prices = orders_total_prices.groupby("order_id")["euros"].sum()
+    orders_total_prices = orders_total_prices.rename_axis("id")
+
+    # Currently, after groupby, we have a Series instance. Resetting the index transformes it into a Dataframe,
+    # creating a fresh index (0..n), while keeping the Series' old index (in this case, the id).
+    # When saving to a file, index will be dropped so nameless extra column is not kept in the final csv.
+    orders_total_prices = orders_total_prices.reset_index()
+
+    return orders_total_prices
 
 def join_unique_ids(ids):
     return " ".join(str(i) for i in sorted(set(ids)))
@@ -93,11 +111,8 @@ if __name__ == "__main__":
         parser.error(f"Invalid CSV format: {e}")
 
     # Task 1
-    items = merge_orders_and_products(df_orders, df_products)
-    orders_total_prices = items.rename(columns={"cost": "euros"})
-    orders_total_prices = orders_total_prices.groupby("id")["euros"].sum()
-
-    save_to_file(orders_total_prices, "order_prices.csv", output_dir)
+    items = explode_orders(df_orders, df_products)
+    save_to_file(order_prices(items), "order_prices.csv", output_dir, index=False)
 
     # Task 2
     grouped_products = items.groupby("product_id")["customer"].apply(join_unique_ids)
