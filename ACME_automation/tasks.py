@@ -2,10 +2,8 @@ import pandas as pd
 import argparse
 from pathlib import Path
 
-def get_missing_files(orders_file, customers_file, products_file):
-    files = [orders_file, customers_file, products_file]
+def get_missing_files(files):
     missing = []
-
     for file in files:
         print(str(file))
         if not file.is_file():
@@ -79,25 +77,19 @@ if __name__ == "__main__":
     products_file = args.input_dir / "products.csv"
     output_dir = args.output_dir
 
-    missing_files = get_missing_files(orders_file, customers_file, products_file)
+    missing_files = get_missing_files([orders_file, customers_file, products_file])
 
     if missing_files:
-        parser.error(
-        "Missing input files: " + ", ".join(str(file) for file in missing_files)
-    )
+        parser.error("Missing input files: " + ", ".join(map(str, missing_files)))
 
     try:
-        df_orders = pd.read_csv(orders_file)
+        df_orders = pd.read_csv(orders_file, dtype={"products": str}) # Specify string type to ensure it interprates the list as such
         df_customers = pd.read_csv(customers_file)
         df_products = pd.read_csv(products_file)
 
-    except FileNotFoundError as e:
-        parser.error(f"Input file not found: {e.filename}")
-
     except PermissionError as e:
         parser.error(f"Permission denied: {e.filename}")
-
-    except pd.errors.ParserError as e:
+    except (pd.errors.ParserError, pd.errors.EmptyDataError) as e:
         parser.error(f"Invalid CSV format: {e}")
 
     # Task 1
