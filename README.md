@@ -134,13 +134,23 @@ or if a CSV cannot be parsed. Existing output files are overwritten.
 test-it-sistemes-icgc/
 ├── README.md
 ├── requirements.txt
+├── requirements-dev.txt
 ├── ACME_automation/
 │   ├── __init__.py
 │   ├── tasks.py        # pure functions for the tasks: explode_orders, order_prices, ...
 │   └── cli.py          # argument parsing, file reading/writing, main()
+├── tests/
+│   └── test_tasks.py
 ├── data/               # input CSV files
 └── output/             # generated files (git-ignored)
 ```
 
 `tasks.py` contains only functions that receive DataFrames and return DataFrames;
 `cli.py` is the only module that touches the filesystem.
+
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest
+```
