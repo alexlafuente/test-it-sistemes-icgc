@@ -5,7 +5,6 @@ from pathlib import Path
 def get_missing_files(files):
     missing = []
     for file in files:
-        print(str(file))
         if not file.is_file():
             missing.append(file)
 
@@ -63,7 +62,7 @@ def order_prices(items):
     orders_total_prices = orders_total_prices.rename_axis("id")
 
     # Currently, after groupby, we have a Series instance. Resetting the index transformes it into a Dataframe,
-    # creating a fresh index (0..n), while keeping the Series' old index as a column (in this case, the id).
+    # creating a fresh index [0..n], while keeping the Series' old index as a column (in this case, the id).
     # When saving to a file, index will be dropped so nameless extra column is not kept in the final csv.
     orders_total_prices = orders_total_prices.reset_index()
 
@@ -81,6 +80,37 @@ def product_customers(items):
     items = items.reset_index(name="customer_ids").rename(columns={"product_id": "id"})
 
     return items
+
+def customer_ranking(items, customers):
+    """Task 3: total spent per customer, descending.
+
+    Customers without orders are kept with total_euros = 0.
+    """
+    grouped_customers = items.groupby("customer")["cost"].sum()
+    grouped_customers = grouped_customers.rename("total_euros")
+    
+    clients_info_and_total_spendings = (
+        customers.merge(
+            grouped_customers,
+            left_on="id",
+            right_on="customer",
+            how="left" # Include customers who haven't ordered any product
+        )
+    )
+    
+    # Add 0 (€) value to each customer who hasn't ordered any product
+    clients_info_and_total_spendings["total_euros"] = clients_info_and_total_spendings["total_euros"].fillna(0)
+
+    # Order by descending order of total_euros
+    clients_info_and_total_spendings = clients_info_and_total_spendings.sort_values(
+        by=["total_euros", "id"], ascending=[False, True]
+    )
+
+    # Reset index with drop=True, as orderby ordered elements but kept the indexes.
+    # Resetting allows to recreate from first to last as of [0..n]
+    clients_info_and_total_spendings = clients_info_and_total_spendings.reset_index(drop=True)
+    
+    return clients_info_and_total_spendings
 
 if __name__ == "__main__":
 
@@ -127,27 +157,5 @@ if __name__ == "__main__":
     # Task 2
     save_to_file(product_customers(items), "product_customers.csv", output_dir, index=False)
 
-
     # Task 3
-    grouped_customers = items.groupby("customer")["cost"].sum()
-
-    clients_info_and_total_spendings = (
-        df_customers.merge(
-            grouped_customers.reset_index(name="total_euros"), # Reset Series index, which currently has the customer values without its index (due to previous groupby)
-            left_on="id",
-            right_on="customer",
-            how="left" # Include customers who haven't ordered any product
-        )
-    )
-
-    # Order by descending order of total_euros
-    clients_info_and_total_spendings = clients_info_and_total_spendings.sort_values(
-        by=["total_euros", "id"], ascending=[False, True]
-    )
-
-    # Add 0 (€) value to each customer who hasn't ordered any product
-    clients_info_and_total_spendings["total_euros"] = clients_info_and_total_spendings["total_euros"].fillna(0)
-
-    clients_info_and_total_spendings = clients_info_and_total_spendings.drop(columns=["customer"])
-
-    save_to_file(clients_info_and_total_spendings, "customer_ranking.csv", output_dir, False)
+    save_to_file(customer_ranking(items, df_customers), "customer_ranking.csv", output_dir, index=False)
