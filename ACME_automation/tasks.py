@@ -63,14 +63,24 @@ def order_prices(items):
     orders_total_prices = orders_total_prices.rename_axis("id")
 
     # Currently, after groupby, we have a Series instance. Resetting the index transformes it into a Dataframe,
-    # creating a fresh index (0..n), while keeping the Series' old index (in this case, the id).
+    # creating a fresh index (0..n), while keeping the Series' old index as a column (in this case, the id).
     # When saving to a file, index will be dropped so nameless extra column is not kept in the final csv.
     orders_total_prices = orders_total_prices.reset_index()
 
     return orders_total_prices
 
 def join_unique_ids(ids):
+    """Return the unique ids as a sorted, space-separated string."""
     return " ".join(str(i) for i in sorted(set(ids)))
+
+def product_customers(items):
+    """Task 2: customers (unique, sorted) that bought each product."""
+    items = items.groupby("product_id")["customer"].agg(join_unique_ids)
+
+    # reset_index allows to rename the Series' data column
+    items = items.reset_index(name="customer_ids").rename(columns={"product_id": "id"})
+
+    return items
 
 if __name__ == "__main__":
 
@@ -115,12 +125,7 @@ if __name__ == "__main__":
     save_to_file(order_prices(items), "order_prices.csv", output_dir, index=False)
 
     # Task 2
-    grouped_products = items.groupby("product_id")["customer"].apply(join_unique_ids)
-
-    # Reset Series index, which currently has the customer values without its index.
-    # Then rename product_id column
-    grouped_products = grouped_products.reset_index(name="customer_ids").rename(columns={"product_id": "id"})
-    save_to_file(grouped_products, "product_customers.csv", output_dir, False)
+    save_to_file(product_customers(items), "product_customers.csv", output_dir, index=False)
 
 
     # Task 3
