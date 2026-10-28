@@ -67,3 +67,80 @@ Per tal d’avaluar els nostres clients, necessitem el fitxer `customer_ranking.
 5. Entregar l'enllaç de la pull request **dins del teu fork**.
 
 Recordeu, aquest exercici es una carta de presentació per veure com treballeu. És important que puguem entendre i validar la solució.
+
+# ACME Automation Tasks
+
+Command-line tool that generates three CSV reports from ACME Inc.'s order data.
+
+| Output file | Content |
+|---|---|
+| `order_prices.csv` | `id`, `euros`: total cost of each order |
+| `product_customers.csv` | `id`, `customer_ids`: customers that bought each product (unique, sorted, space-separated) |
+| `customer_ranking.csv` | `id`, `firstname`, `lastname`, `total_euros`: customers sorted by total spent, descending |
+
+## Requirements
+
+- Python 3.9 or later (required by pandas 2.3); tested with Python 3.14.8
+- The dependencies in `requirements.txt` (only `pandas`; `argparse` and `pathlib` are in the standard library)
+
+## Setup
+
+```bash
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+## Usage
+
+Run it from the project root. By default it reads `data/` and writes to `output/`
+(created automatically if it does not exist):
+
+```bash
+python -m ACME_automation.cli
+```
+
+To use other directories:
+
+```bash
+python -m ACME_automation.cli --input-dir path/to/inputs --output-dir path/to/outputs
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--input-dir` | `data` | Directory containing `customers.csv`, `products.csv` and `orders.csv` |
+| `--output-dir` | `output` | Directory where the three result files are written |
+
+The script exits with an error message if the input directory or any input file is missing,
+or if a CSV cannot be parsed. Existing output files are overwritten.
+
+## Input format
+
+- `customers.csv`: `id`, `firstname`, `lastname`
+- `products.csv`: `id`, `name`, `cost` (euros)
+- `orders.csv`: `id`, `customer`, `products` (product ids separated by spaces; a repeated id means several units)
+
+## Behavior and assumptions
+
+- A product repeated within an order is charged once per unit, but a customer is listed only once per product in `product_customers.csv`.
+- Customers with no orders appear in `customer_ranking.csv` with `total_euros = 0`.
+- Customers with the same total are ordered by `id`, so the output is reproducible.
+- Ids are assumed to be unique, and every product and customer referenced by an order is assumed to exist in its file.
+- Euro amounts are written at full floating-point precision (not rounded).
+
+## Project structure
+
+```
+test-it-sistemes-icgc/
+├── README.md
+├── requirements.txt
+├── ACME_automation/
+│   ├── __init__.py
+│   ├── tasks.py        # pure functions for the tasks: explode_orders, order_prices, ...
+│   └── cli.py          # argument parsing, file reading/writing, main()
+├── data/               # input CSV files
+└── output/             # generated files (git-ignored)
+```
+
+`tasks.py` contains only functions that receive DataFrames and return DataFrames;
+`cli.py` is the only module that touches the filesystem.
